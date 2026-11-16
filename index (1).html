@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AI STORE</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root { --bg:#0f1428; --card:#1b2238; --line:#2d3652; --gold:#f2b93b; --text:#f1f3fa; --muted:#8d96b2; --in:#4cc38a; --out:#ef6b6b; }
+  * { box-sizing:border-box; margin:0; -webkit-tap-highlight-color:transparent; }
+  body { background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; max-width:520px; margin:0 auto; padding:16px 16px 110px; }
+  .wallet { background:linear-gradient(135deg,#2b3350 0%,#1b2238 60%); border:1px solid #4a4230; border-radius:22px; padding:18px 18px 20px; }
+  .who { color:var(--muted); font-size:14px; }
+  .bal { font-size:40px; font-weight:800; color:var(--gold); margin-top:6px; letter-spacing:-.5px; }
+  .bal small { font-size:16px; font-weight:600; margin-left:6px; }
+  h2 { font-size:20px; margin:24px 0 12px; }
+  .games { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .game { background:var(--card); border:1.5px solid var(--line); border-radius:16px; padding:18px 6px 14px; text-align:center; font-size:13px; color:var(--text); cursor:pointer; }
+  .game .ic { font-size:30px; display:block; margin-bottom:8px; }
+  .game.on { border-color:var(--gold); background:#262a3a; }
+  .pack { display:flex; justify-content:space-between; align-items:center; width:100%; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:10px; color:var(--text); font-size:16px; cursor:pointer; text-align:left; }
+  .pack b { color:var(--gold); white-space:nowrap; margin-left:12px; }
+  .pack.low b { color:var(--muted); }
+  .btn { width:100%; border:0; border-radius:14px; padding:16px; font-size:16px; font-weight:700; cursor:pointer; background:linear-gradient(90deg,#f2b93b,#a8691d); color:#1a1205; margin-top:16px; }
+  .note { color:var(--muted); font-size:13px; margin-top:14px; line-height:1.5; }
+  .tx { display:flex; justify-content:space-between; gap:12px; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-bottom:10px; }
+  .tx .t { font-size:15px; }
+  .tx .d { color:var(--muted); font-size:12px; margin-top:4px; }
+  .tx .a { font-weight:700; white-space:nowrap; text-align:right; }
+  .tx .a.in { color:var(--in); } .tx .a.out { color:var(--out); } .tx .a.zero { color:var(--muted); }
+  .tx .s { display:block; font-size:12px; font-weight:500; color:var(--muted); margin-top:4px; }
+  .empty { color:var(--muted); text-align:center; padding:40px 0; }
+  .row { display:flex; justify-content:space-between; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:10px; }
+  .row span:first-child { color:var(--muted); }
+  nav { position:fixed; left:0; right:0; bottom:0; max-width:520px; margin:0 auto; display:grid; grid-template-columns:repeat(4,1fr); background:#151b30; border-top:1px solid var(--line); padding:8px 6px calc(8px + env(safe-area-inset-bottom,0px)); }
+  nav button { background:none; border:0; color:var(--muted); font-size:12px; padding:6px 0; cursor:pointer; }
+  nav button .i { display:block; font-size:22px; margin-bottom:2px; }
+  nav button.on { color:var(--gold); }
+  .view { display:none; } .view.on { display:block; }
+  #sheet { position:fixed; left:0; right:0; bottom:0; max-width:520px; margin:0 auto; background:#151b30; border-top:1px solid var(--gold); border-radius:22px 22px 0 0; padding:20px 18px calc(22px + env(safe-area-inset-bottom,0px)); transform:translateY(110%); transition:transform .25s ease; z-index:5; }
+  #sheet.open { transform:translateY(0); }
+  #sheet h3 { font-size:18px; margin-bottom:4px; } #sheet p { color:var(--muted); margin-bottom:16px; }
+  .two { display:flex; gap:10px; } .two .btn { margin-top:0; } .two .no { background:var(--card); color:var(--text); }
+  @media (prefers-reduced-motion:reduce) { #sheet { transition:none; } }
+</style>
+</head>
+<body>
+
+<div class="wallet">
+  <div class="who" id="who">Mehmon</div>
+  <div class="bal"><span id="bal">0</span><small>UZS</small></div>
+</div>
+
+<section class="view on" id="v-home">
+  <h2>O'yinlar</h2>
+  <div class="games" id="games"></div>
+  <h2>Paketni tanlang</h2>
+  <div id="packs"></div>
+  <p class="note">Tanlagandan keyin botda o'yin ID raqamingizni yozasiz. Pul balansdan yechiladi.</p>
+</section>
+
+<section class="view" id="v-wallet">
+  <h2>Hamyon</h2>
+  <p class="note" style="margin:0 0 4px">Balansni kartadan to'ldirasiz, chekni botga yuborasiz. Admin tasdiqlagach balansga tushadi.</p>
+  <button class="btn" id="topup">Balansni to'ldirish</button>
+</section>
+
+<section class="view" id="v-hist">
+  <h2>Kirim va chiqim</h2>
+  <div id="hist"></div>
+</section>
+
+<section class="view" id="v-prof">
+  <h2>Profil</h2>
+  <div class="row"><span>Ism</span><span id="pname">-</span></div>
+  <div class="row"><span>Telegram ID</span><span id="pid">-</span></div>
+  <div class="row"><span>Balans</span><span id="pbal">0 UZS</span></div>
+</section>
+
+<nav>
+  <button data-v="home" class="on"><span class="i">🏠</span>Bosh sahifa</button>
+  <button data-v="wallet"><span class="i">💰</span>Hamyon</button>
+  <button data-v="hist"><span class="i">🕘</span>Tarix</button>
+  <button data-v="prof"><span class="i">👤</span>Profil</button>
+</nav>
+
+<div id="sheet">
+  <h3 id="sname"></h3>
+  <p id="sprice"></p>
+  <div class="two">
+    <button class="btn no" id="cancel">Bekor qilish</button>
+    <button class="btn" id="confirm">Davom etish</button>
+  </div>
+</div>
+
+<script>
+  // Narxlar bot kodidagi PRODUCTS bilan bir xil bo'lishi shart!
+  const PRODUCTS = {
+    pubg: { name:"PUBG Mobile", icon:"🎮", items:[["60 UC",13000],["325 UC",65000],["660 UC",130000]] },
+    ml:   { name:"Mobile Legends", icon:"💎", items:[["86 almaz",18000],["172 almaz",36000],["Haftalik pass",30000]] },
+    ff:   { name:"Free Fire", icon:"🔥", items:[["100 almaz",12000],["310 almaz",35000],["Haftalik obuna",28000]] }
+  };
+  const tg = window.Telegram && window.Telegram.WebApp;
+  if (tg) { tg.ready(); tg.expand(); tg.setHeaderColor("#0f1428"); tg.setBackgroundColor("#0f1428"); }
+
+  const fmt = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  const $ = id => document.getElementById(id);
+
+  function load() {
+    try {
+      let s = (new URLSearchParams(location.search).get("d") || "").replace(/-/g,"+").replace(/_/g,"/");
+      if (!s) return { b:0, h:[] };
+      while (s.length % 4) s += "=";
+      const bytes = Uint8Array.from(atob(s), c => c.charCodeAt(0));
+      return JSON.parse(new TextDecoder().decode(bytes));
+    } catch (e) { return { b:0, h:[] }; }
+  }
+  const data = load();
+  const balance = data.b || 0;
+  $("bal").textContent = fmt(balance);
+  $("pbal").textContent = fmt(balance) + " UZS";
+  const u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
+  if (u) { $("who").textContent = u.first_name; $("pname").textContent = u.first_name; $("pid").textContent = u.id; }
+
+  // Navigatsiya
+  document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
+    document.querySelectorAll("nav button").forEach(x => x.classList.toggle("on", x === b));
+    document.querySelectorAll(".view").forEach(v => v.classList.toggle("on", v.id === "v-" + b.dataset.v));
+    $("sheet").classList.remove("open");
+    window.scrollTo(0, 0);
+  });
+
+  // Bosh sahifa
+  let game = "pubg", picked = null;
+  function drawGames() {
+    $("games").innerHTML = "";
+    Object.entries(PRODUCTS).forEach(([k, g]) => {
+      const b = document.createElement("button");
+      b.className = "game" + (k === game ? " on" : "");
+      b.innerHTML = `<span class="ic">${g.icon}</span>${g.name}`;
+      b.onclick = () => { game = k; drawGames(); drawPacks(); };
+      $("games").appendChild(b);
+    });
+  }
+  function drawPacks() {
+    $("packs").innerHTML = "";
+    PRODUCTS[game].items.forEach(([name, price], i) => {
+      const b = document.createElement("button");
+      b.className = "pack" + (balance < price ? " low" : "");
+      b.innerHTML = `<span>${name}</span><b>${fmt(price)} UZS</b>`;
+      b.onclick = () => openSheet(i);
+      $("packs").appendChild(b);
+    });
+  }
+  function openSheet(i) {
+    picked = i;
+    const [name, price] = PRODUCTS[game].items[i];
+    $("sname").textContent = PRODUCTS[game].name + " — " + name;
+    $("sprice").textContent = balance >= price ? "Narxi: " + fmt(price) + " UZS" : "Balans yetarli emas. Avval Hamyon bo'limidan to'ldiring.";
+    $("sheet").classList.add("open");
+  }
+  $("cancel").onclick = () => $("sheet").classList.remove("open");
+  $("confirm").onclick = () => send({ k:game, i:picked });
+  $("topup").onclick = () => send({ a:"topup" });
+
+  function send(obj) {
+    if (tg) tg.sendData(JSON.stringify(obj)); else alert("Telegram ichida oching.");
+  }
+
+  // Tarix: [tur, nom, summa, sana, holat]
+  const STATUS = { ok:"Tasdiqlandi", new:"Kutilmoqda", no:"Rad etildi", done:"Bajarildi", cancel:"Bekor qilindi, pul qaytdi" };
+  function drawHist() {
+    const h = data.h || [];
+    if (!h.length) { $("hist").innerHTML = '<p class="empty">Hozircha amallar yo\'q.</p>'; return; }
+    $("hist").innerHTML = h.map(([kind, title, amount, date, st]) => {
+      const dead = st === "no" || st === "cancel";
+      const cls = dead || st === "new" && kind === "in" ? "zero" : kind;
+      const sign = dead ? "" : (kind === "in" ? "+" : "−");
+      return `<div class="tx"><div><div class="t">${title}</div><div class="d">${date || ""}</div></div>` +
+             `<div class="a ${cls}">${sign}${fmt(amount)} UZS<span class="s">${STATUS[st] || ""}</span></div></div>`;
+    }).join("");
+  }
+
+  drawGames(); drawPacks(); drawHist();
+</script>
+</body>
+</html>
